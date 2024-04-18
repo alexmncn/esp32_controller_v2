@@ -24,6 +24,11 @@ ssid_casa = "LowiC73C"
 password_casa = "DH63H4KU676JPC"
 ip_casa = "192.168.0.100"
 
+networks = {
+    'piso': (ip_piso, ssid_piso, password_piso),
+    'casa': (ip_casa, ssid_casa, password_casa)
+}
+
 # --------------------- Servidor web ----------------------
 
 port = 80
@@ -35,48 +40,23 @@ server.listen(5)
 # ---------------------------------------------------------
 
 def detect_net_and_connect():
-    # First net will try to connect
-    status = 1
-    
-    status_piso = 1
-    status_casa = 2
-    
-    while status == status_piso or status == status_casa:
-        if status == status_piso:
-            print("Intentando conexión con wifi Piso")
-            resp = connect_wifi(ip_piso, ssid_piso, password_piso, 'Piso')
-            if resp == 0:
-                status = 0
-            else:
-                status += 1
-        elif status == status_casa:
-            print("Intentando conexión con wifi Casa")
-            resp = connect_wifi(ip_casa, ssid_casa, password_casa, 'Casa')
-            if resp == 0:
-                status = 0
-            else:
-                status += 1
-            
-            
-def connect_wifi(ip_address, ssid, password, net_name):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.ifconfig((ip_address, '255.255.255.0', '', '8.8.8.8'))
     
-    wlan.connect(ssid, password)
+    for net_name, (ip_address, ssid, password) in networks.items():
+        print(f"Intentando conectar a la red {ssid} ({net_name})")
+        wlan.ifconfig((ip_address, '255.255.255.0', '', '8.8.8.8'))
+        wlan.connect(ssid, password)
     
-    try_count = 0
-    while not wlan.isconnected() and try_count <10:
-        try_count += 1
-        print(".")
-        time.sleep(1)
+        try_count = 0
+        while not wlan.isconnected() and try_count <10:
+            try_count += 1
+            print(".")
+            time.sleep(1)
     
-    if wlan.isconnected():
-        print(f"Se ha conectado a la red {ssid} ({net_name})")
-        return 0
-    else:
-        print("No se ha podido conectar a la red")
-        return 1
+        if wlan.isconnected():
+            print("Conectado")
+            break;
     
 
 def PC_ON():
