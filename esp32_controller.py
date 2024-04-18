@@ -17,10 +17,12 @@ dht = DHT22(Pin(17))
 # Wifi piso
 ssid_piso = "MiFibra-0A20-24G"
 password_piso = "9XKrvXK2"
+ip_piso = "192.168.1.100"
 
 # Wifi casa
 ssid_casa = "LowiC73C"
 password_casa = "DH63H4KU676JPC"
+ip_casa = "192.168.0.100"
 
 # --------------------- Servidor web ----------------------
 
@@ -32,14 +34,50 @@ server.listen(5)
 
 # ---------------------------------------------------------
 
-def connect_wifi(ssid, password):
+def detect_net_and_connect():
+    # First net will try to connect
+    status = 1
+    
+    status_piso = 1
+    status_casa = 2
+    
+    while status == status_piso or status == status_casa:
+        if status == status_piso:
+            print("Intentando conexión con wifi Piso")
+            resp = connect_wifi(ip_piso, ssid_piso, password_piso, 'Piso')
+            if resp == 0:
+                status = 0
+            else:
+                status += 1
+        elif status == status_casa:
+            print("Intentando conexión con wifi Casa")
+            resp = connect_wifi(ip_casa, ssid_casa, password_casa, 'Casa')
+            if resp == 0:
+                status = 0
+            else:
+                status += 1
+            
+            
+def connect_wifi(ip_address, ssid, password, net_name):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+    wlan.ifconfig((ip_address, '255.255.255.0', '', '8.8.8.8'))
+    
     wlan.connect(ssid, password)
-    while not wlan.isconnected():
+    
+    try_count = 0
+    while not wlan.isconnected() and try_count <10:
+        try_count += 1
+        print(".")
         time.sleep(1)
-    print("Conectado a wifi")
-
+    
+    if wlan.isconnected():
+        print(f"Se ha conectado a la red {ssid} ({net_name})")
+        return 0
+    else:
+        print("No se ha podido conectar a la red")
+        return 1
+    
 
 def PC_ON():
     print("PC-ON")
@@ -60,7 +98,7 @@ def handle_client(client, address):
     
     if '/control' in path:
         if f'/control?secret_class={PC.ON_KEY}&on=ON' == path:
-            # Encender PC
+            # Turn ON PC
             PIN_PC_ON.on()
             time.sleep(0.5)
             PIN_PC_ON.off()
@@ -82,14 +120,19 @@ def handle_client(client, address):
 
 def run_server():
     while True:
-        client, addr = server.accept()
-        handle_client(client, addr)
+        try:
+            client, addr = server.accept()
+            handle_client(client, addr)
+        except:
+            print("Error en la solicitud")
+            
 
 
 def main():
-    connect_wifi(ssid_piso, password_piso)
+    detect_net_and_connect()
     run_server()
 
 
 if __name__ == '__main__':
     main()
+
