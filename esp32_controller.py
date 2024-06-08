@@ -41,10 +41,14 @@ server.listen(5)
 
 def detect_net_and_connect():
     wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
     
     for net_name, (ip_address, ssid, password) in networks.items():
         print(f"Intentando conectar a la red {ssid} ({net_name})")
+        
+        wlan.active(False)
+        time.sleep(1)
+        wlan.active(True)
+        
         wlan.ifconfig((ip_address, '255.255.255.0', '', '8.8.8.8'))
         wlan.connect(ssid, password)
     
@@ -60,11 +64,23 @@ def detect_net_and_connect():
     
 
 def PC_ON():
-    print("PC-ON")
+    # Turn ON PC
+    PIN_PC_ON.on()
+    time.sleep(0.5)
+    PIN_PC_ON.off()
     
 
 def get_temp_humd():
-    print("temp-humd")
+    dht.measure()
+    temperature = dht.temperature()
+    humidity = dht.humidity()
+    
+    if temperature != None:
+        sensor_data = {'temperature': temperature, 'humidity': humidity}
+        return sensor_data
+    else:
+        sensor_data = {'temperature': 'None', 'humidity': 'None'}
+        return sensor_data
     
 
 def handle_client(client, address):
@@ -78,18 +94,12 @@ def handle_client(client, address):
     
     if '/control' in path:
         if f'/control?secret_class={PC.ON_KEY}&on=ON' == path:
-            # Turn ON PC
-            PIN_PC_ON.on()
-            time.sleep(0.5)
-            PIN_PC_ON.off()
+            PC_ON()
             response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\nPC encendido"
         else:
             response = "HTTP/1.1 403 Forbidden\r\nContent-Type: text/html\r\n\r\nForbidden"
     elif path == '/getTempAndHumd':
-        dht.measure()
-        temperature = dht.temperature()
-        humidity = dht.humidity()
-        data = {'temperature': temperature, 'humidity': humidity}
+        data = get_temp_humd()
         response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n" + ujson.dumps(data)
     else:
         response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n" + "<!DOCTYPE html><html><head><title>ESP32 Web Server</title></head><body><h1>ESP32 Web Server</h1></body></html>"
@@ -115,4 +125,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
